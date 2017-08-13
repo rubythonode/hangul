@@ -2,26 +2,32 @@ package hangul
 
 import (
 	"fmt"
-	"sort"
 	"unicode/utf8"
 )
 
-var (
-	// 19
-	choseong = [...]rune{'ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'}
-	// 21
-	jungseong = [...]rune{'ㅏ', 'ㅐ', 'ㅑ', 'ㅒ', 'ㅓ', 'ㅔ', 'ㅕ', 'ㅖ', 'ㅗ', 'ㅘ', 'ㅙ', 'ㅚ', 'ㅛ', 'ㅜ', 'ㅝ', 'ㅞ', 'ㅟ', 'ㅠ', 'ㅡ', 'ㅢ', 'ㅣ'}
-	// 28
-	jongseong = [...]rune{0, 'ㄱ', 'ㄲ', 'ㄳ', 'ㄴ', 'ㄵ', 'ㄶ', 'ㄷ', 'ㄹ', 'ㄺ', 'ㄻ', 'ㄼ', 'ㄽ', 'ㄾ', 'ㄿ', 'ㅀ', 'ㅁ', 'ㅂ', 'ㅄ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'}
+const (
+	CHOSEONG_SIZE  = 19
+	JUNGSEONG_SIZE = 21
+	JONGSEONG_SIZE = 28
 )
 
 func SeparateToRune(r rune) ([]rune, error) {
 	if IsHangulLetter(r) == true {
 		var sep []rune = make([]rune, 3)
+		var err error
 
-		sep[0] = choseong[int((((r-0xAC00)-(r-0xAC00)%28)/28)/21)]
-		sep[1] = jungseong[int((((r-0xAC00)-(r-0xAC00)%28)/28)%21)]
-		sep[2] = jongseong[int((r-0xAC00)%28)]
+		sep[0], err = Choseong(int((((r - 0xAC00) - (r-0xAC00)%JONGSEONG_SIZE) / JONGSEONG_SIZE) / JUNGSEONG_SIZE))
+		if err != nil {
+			return nil, err
+		}
+		sep[1], err = Jungseong(int((((r - 0xAC00) - (r-0xAC00)%JONGSEONG_SIZE) / JONGSEONG_SIZE) % JUNGSEONG_SIZE))
+		if err != nil {
+			return nil, err
+		}
+		sep[2], err = Jongseong(int((r - 0xAC00) % JONGSEONG_SIZE))
+		if err != nil {
+			return nil, err
+		}
 
 		return sep, nil
 	} else {
@@ -33,9 +39,9 @@ func SeparateToInt(r rune) ([]int, error) {
 	if IsHangulLetter(r) == true {
 		var sep []int = make([]int, 3)
 
-		sep[0] = int((((r - 0xAC00) - (r-0xAC00)%28) / 28) / 21)
-		sep[1] = int((((r - 0xAC00) - (r-0xAC00)%28) / 28) % 21)
-		sep[2] = int((r - 0xAC00) % 28)
+		sep[0] = int((((r - 0xAC00) - (r-0xAC00)%JONGSEONG_SIZE) / JONGSEONG_SIZE) / JUNGSEONG_SIZE)
+		sep[1] = int((((r - 0xAC00) - (r-0xAC00)%JONGSEONG_SIZE) / JONGSEONG_SIZE) % JUNGSEONG_SIZE)
+		sep[2] = int((r - 0xAC00) % JONGSEONG_SIZE)
 
 		return sep, nil
 	} else {
@@ -44,7 +50,7 @@ func SeparateToInt(r rune) ([]int, error) {
 }
 
 func BuildOfInt(f, s, t int) (rune, error) {
-	var r rune = rune(44032 + 588*f + 28*s + t)
+	var r rune = rune(0xAC00 + 588*f + JONGSEONG_SIZE*s + t)
 	if IsHangulLetter(r) == true {
 		return r, nil
 	} else {
@@ -71,56 +77,53 @@ func BuildOfRune(f, s, t rune) (rune, error) {
 		return 0, err
 	}
 
-	var r rune = rune(44032 + 588*iF + 28*iS + iT)
+	var r rune = rune(0xAC00 + 588*iF + JONGSEONG_SIZE*iS + iT)
 	return r, nil
 }
 
 func Choseong(n int) (rune, error) {
-	if n < 0 || n > len(choseong) {
+	if n < 0 || n > CHOSEONG_SIZE {
 		return 0, fmt.Errorf("Index out of range: Choseong[19]")
 	} else {
-		return choseong[n], nil
+		return rune(0x1100 + n), nil
 	}
 }
 
 func Jungseong(n int) (rune, error) {
-	if n < 0 || n > len(jungseong) {
+	if n < 0 || n > JUNGSEONG_SIZE {
 		return 0, fmt.Errorf("Index out of range: Jungseong[21]")
 	} else {
-		return jungseong[n], nil
+		return rune(0x1161 + n), nil
 	}
 }
 
 func Jongseong(n int) (rune, error) {
-	if n < 0 || n > len(jongseong) {
+	if n < 0 || n > JONGSEONG_SIZE {
 		return 0, fmt.Errorf("Index out of range: Jongseong[28]")
 	} else {
-		return jongseong[n], nil
+		return rune(0x11A7 + n), nil
 	}
 }
 
 func IndexOfChoseong(r rune) (int, error) {
-	i := sort.Search(len(choseong), func(i int) bool { return choseong[i] >= r })
-	if i < len(choseong) && choseong[i] == r {
-		return i, nil
+	if r >= rune(0x1100) && r <= rune(0x1113) {
+		return int(r) - 0x1100, nil
 	} else {
 		return -1, fmt.Errorf("Choseong does not contain '%c'", r)
 	}
 }
 
 func IndexOfJungseong(r rune) (int, error) {
-	i := sort.Search(len(jungseong), func(i int) bool { return jungseong[i] >= r })
-	if i < len(jungseong) && jungseong[i] == r {
-		return i, nil
+	if r >= rune(0x1161) && r <= rune(0x1176) {
+		return int(r) - 0x1161, nil
 	} else {
 		return -1, fmt.Errorf("Jungseong does not contain '%c'", r)
 	}
 }
 
 func IndexOfJongseong(r rune) (int, error) {
-	i := sort.Search(len(jongseong), func(i int) bool { return jongseong[i] >= r })
-	if i < len(jongseong) && jongseong[i] == r {
-		return i, nil
+	if r >= rune(0x11A7) && r <= rune(0x11C3) {
+		return int(r) - 0x11A7, nil
 	} else {
 		return -1, fmt.Errorf("Jongseong does not contain '%c'", r)
 	}
@@ -130,7 +133,7 @@ func IsHangulLetter(r rune) bool {
 	if utf8.ValidRune(r) == false {
 		return false
 	} else {
-		if r >= 43032 && r <= 55203 {
+		if r >= 0xAC00 && r <= 0xD7A3 {
 			return true
 		} else {
 			return false
@@ -140,10 +143,10 @@ func IsHangulLetter(r rune) bool {
 
 func IsHangul(r rune) bool {
 	if IsHangulLetter(r) == false {
-		if (r >= 'ㄱ' && r <= 'ㅎ') || (r >= 'ㅏ' && r <= 'ㅣ') {
+		if (r >= 'ㄱ' && r <= 'ㅎ') || (r >= 'ㅏ' && r <= 'ㅣ') || (r >= rune(0x1100) && r <= rune(0x1113)) || (r >= rune(0x1161) && r <= rune(0x1176)) || (r >= rune(0x11A7) && r <= rune(0x11C3)) {
 			return true
 		} else {
-			return true
+			return false
 		}
 	} else {
 		return true
